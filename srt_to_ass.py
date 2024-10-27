@@ -3,6 +3,35 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
+def clean_formatting(text):
+    """
+    Remove formatting tags from text while preserving the content.
+    
+    Args:
+        text (str): Input text with potential formatting tags
+        
+    Returns:
+        str: Cleaned text if it contains font tags, original text otherwise
+    """
+    # Check if text contains font tags
+    if '<font' in text:
+        # Remove font tags
+        text = re.sub(r'<font[^>]*>', '', text)
+        text = text.replace('</font>', '')
+        
+        # Remove formatting tags
+        text = re.sub(r'<\/?b>', '', text)
+        text = re.sub(r'<\/?i>', '', text)
+        
+        # Remove Aegisub style tags
+        text = re.sub(r'{\\[^}]*}', '', text)
+        
+        # Remove HTML style position tags
+        text = re.sub(r'{\an\d}', '', text)
+        
+        return text.strip()
+    return text
+
 def read_srt(srt_path):
     """
     Read the content of an SRT file.
@@ -12,10 +41,6 @@ def read_srt(srt_path):
         
     Returns:
         str: Content of the SRT file
-        
-    Raises:
-        FileNotFoundError: If the file doesn't exist
-        IOError: If there's an error reading the file
     """
     with open(srt_path, 'r', encoding='utf-8') as file:
         content = file.read()
@@ -28,9 +53,6 @@ def write_ass(ass_path, ass_content):
     Args:
         ass_path (str): Path where the ASS file will be saved
         ass_content (str): Content to write to the ASS file
-        
-    Raises:
-        IOError: If there's an error writing to the file
     """
     with open(ass_path, 'w', encoding='utf-8') as file:
         file.write(ass_content)
@@ -44,10 +66,6 @@ def convert_time_format(srt_time):
         
     Returns:
         str: Time in ASS format (0:00:00.00)
-        
-    Example:
-        >>> convert_time_format("00:01:23,456")
-        "0:01:23.45"
     """
     time_obj = datetime.strptime(srt_time, '%H:%M:%S,%f')
     return time_obj.strftime('0:%H:%M:%S.%f')[:-4]
@@ -86,11 +104,6 @@ def convert_srt_to_ass(srt_path, ass_path):
     Args:
         srt_path (str): Path to the input SRT file
         ass_path (str): Path where the ASS file will be saved
-        
-    Raises:
-        FileNotFoundError: If the input file doesn't exist
-        IOError: If there's an error reading or writing files
-        ValueError: If the SRT file format is invalid
     """
     # Read SRT file
     srt_content = read_srt(srt_path)
@@ -113,8 +126,9 @@ def convert_srt_to_ass(srt_path, ass_path):
             ass_start = convert_time_format(start_time)
             ass_end = convert_time_format(end_time)
             
-            # Combine subtitle text
-            text = ''.join(lines[2:])
+            # Combine subtitle text and clean formatting if needed
+            text = '\n'.join(lines[2:])
+            text = clean_formatting(text)
             text = text.replace('\n', '\\N')  # Replace line breaks with ASS format
             
             # Format ASS line
@@ -127,13 +141,7 @@ def convert_srt_to_ass(srt_path, ass_path):
 def main():
     """
     Main function to handle command line arguments and control the conversion process.
-    
-    Command line arguments:
-        input: Path to input SRT file
-        -o, --output: Path to output ASS file (optional)
-        -d, --directory: Output directory (optional)
     """
-    # Setup argument parser
     parser = argparse.ArgumentParser(description='Convert SRT subtitle files to ASS format')
     parser.add_argument('input', help='Path to input SRT file')
     parser.add_argument('-o', '--output', help='Path to output ASS file (optional)')
